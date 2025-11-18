@@ -1235,12 +1235,40 @@
         // Initial draw
         redraw();
 
+        // Fit bounds into view on load
+        function fitToContent(padding = 40) {
+          try {
+            const bbox = g.node().getBBox();
+            if (!bbox || !isFinite(bbox.width) || !isFinite(bbox.height) || bbox.width === 0 || bbox.height === 0) return;
+            const fullWidth = width;
+            const fullHeight = height;
+            const midX = bbox.x + bbox.width / 2;
+            const midY = bbox.y + bbox.height / 2;
+            const scale = Math.min(
+              (fullWidth - 2 * padding) / bbox.width,
+              (fullHeight - 2 * padding) / bbox.height
+            );
+            const transform = d3.zoomIdentity
+              .translate(fullWidth / 2 - scale * midX, fullHeight / 2 - scale * midY)
+              .scale(scale);
+            svg.call(zoom.transform, transform);
+          } catch (e) {
+            // ignore
+          }
+        }
+
         // Zoom & pan
-        svg.call(
-          d3.zoom().scaleExtent([0.3, 3]).on('zoom', (event) => {
-            gZoom.attr('transform', event.transform);
-          })
-        );
+        const zoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', (event) => {
+          gZoom.attr('transform', event.transform);
+        });
+        svg.call(zoom);
+
+        // Center after first render (allow DOM to layout)
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => fitToContent(60));
+        } else {
+          setTimeout(() => fitToContent(60), 0);
+        }
       })();
     </script>
 </body>
