@@ -852,6 +852,9 @@
         // Extended Colors
         const colors = ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#C9CBCF", "#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#FF6384", "#C9CBCF", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#FF6384", "#C9CBCF", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#FF6384", "#C9CBCF", "#36A2EB", "#FFCE56", "#4BC0C0"];
 
+        // Key events (Anno Mundi)
+        const FLOOD_AM = 1656;
+
         // Function to update label font size based on zoom (safe getZoom check)
         function updateLabelSize(chart) {
             try {
@@ -874,22 +877,39 @@
         const timelineChart = new Chart(timelineCtx, {
             type: 'line',
             data: {
-                datasets: lifespanData.map((person, index) => ({
-                    label: person.name,
-                    data: [
-                        { x: person.birth, y: index, name: person.name },
-                        { x: person.death, y: index, name: person.name }
-                    ],
-                    showLine: true,
-                    borderColor: colors[index % colors.length],
-                    backgroundColor: colors[index % colors.length],
-                    pointBackgroundColor: colors[index % colors.length],
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    fill: false,
-                    tension: 0,
-                    borderWidth: 2
-                }))
+                datasets: [
+                    ...lifespanData.map((person, index) => ({
+                        label: person.name,
+                        data: [
+                            { x: person.birth, y: index, name: person.name },
+                            { x: person.death, y: index, name: person.name }
+                        ],
+                        showLine: true,
+                        borderColor: colors[index % colors.length],
+                        backgroundColor: colors[index % colors.length],
+                        pointBackgroundColor: colors[index % colors.length],
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: false,
+                        tension: 0,
+                        borderWidth: 2
+                    })),
+                    {
+                        label: 'The Flood',
+                        isMarker: true,
+                        data: [
+                            { x: FLOOD_AM, y: -0.5 },
+                            { x: FLOOD_AM, y: lifespanData.length - 0.5 }
+                        ],
+                        showLine: true,
+                        borderColor: '#b22222',
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        borderWidth: 2,
+                        borderDash: [6, 6],
+                        fill: false
+                    }
+                ]
             },
             options: {
                 responsive: true,
@@ -945,7 +965,12 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
+                                if (context.dataset && context.dataset.isMarker) {
+                                    const year = context.parsed.x;
+                                    return `The Flood: ${year} AM`;
+                                }
                                 const person = lifespanData[context.datasetIndex];
+                                if (!person) return '';
                                 const isBirth = context.parsed.x === person.birth;
                                 const event = isBirth ? 'Birth' : 'Death';
                                 const year = context.parsed.x;
