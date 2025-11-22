@@ -79,8 +79,8 @@
         <h2>Population Simulation to Adam’s Death</h2>
         <div class="sim-controls">
             <div class="sim-speed">
-                <label for="sim-speed">Speed: 2 years every <strong id="sim-speed-display">1.00s</strong></label>
-                <input id="sim-speed" type="range" min="100" max="1000" step="100" value="1000" />
+                <label for="sim-speed">Speed: 1 year every <strong id="sim-speed-display">1.00s</strong></label>
+                <input id="sim-speed" type="range" min="10" max="1000" step="10" value="1000" />
             </div>
             <div class="sim-field">
                 <label for="sim-marriage-age">Age of Marrying</label>
@@ -1498,7 +1498,7 @@
 
         const SIM_START_YEAR = 1;
         const SIM_END_YEAR = 930; // Adam's death
-        const YEARS_PER_TICK = 2; // 2 years of sim time per tick
+        const YEARS_PER_TICK = 1; // 1 year of sim time per tick
         let msPerTick = 1000; // real time between ticks
 
         const viewport = document.getElementById('sim-viewport');
@@ -1538,9 +1538,9 @@
         function restartTimer(){ if (timer) { clearInterval(timer); timer = setInterval(step, msPerTick); } }
         function updateSpeedFromSlider(){
           if (!speedSlider) return;
-          const raw = parseInt(speedSlider.value, 10) || 100;
-          // Map 100..1000 slider to 1000..100 ms so left=slow, right=fast
-          msPerTick = 1100 - Math.min(1000, Math.max(100, raw));
+          const raw = parseInt(speedSlider.value, 10) || 10;
+          // Map 10..1000 slider to 1000..10 ms so left=slow, right=fast
+          msPerTick = 1010 - Math.min(1000, Math.max(10, raw));
           if (speedDisplay) speedDisplay.textContent = fmtMs(msPerTick);
           if (running) restartTimer();
         }
@@ -1601,14 +1601,19 @@
         function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
 
         function pairUpSingles(){
+          // Only pair singles who are within their childbearing window to avoid infertile matches
           const males = people.filter(p => p.sex === 'M' && !p.spouseId && getAge(p) >= config.marriageAge);
           const females = people.filter(p => p.sex === 'F' && !p.spouseId && getAge(p) >= config.marriageAge);
-          shuffle(males); shuffle(females);
-          const n = Math.min(males.length, females.length);
+
+          const fertileMales = males.filter(p => getAge(p) <= config.childEndAge);
+          const fertileFemales = females.filter(p => getAge(p) <= config.childEndAge);
+          shuffle(fertileMales); shuffle(fertileFemales);
+
+          const n = Math.min(fertileMales.length, fertileFemales.length);
           const rect = viewport.getBoundingClientRect();
           const sep = 6; // px separation between partners
           for (let i = 0; i < n; i++){
-            const m = males[i], f = females[i];
+            const m = fertileMales[i], f = fertileFemales[i];
             m.spouseId = f.id; f.spouseId = m.id;
             // Co-locate pair side-by-side at the averaged position
             const baseX = clamp(((m.x || 0) + (f.x || 0)) / 2, sep + 3, rect.width - sep - 3);
@@ -1625,7 +1630,8 @@
             if (!m || !f) continue;
             const mAge = getAge(m), fAge = getAge(f);
             if (mAge < config.marriageAge || fAge < config.marriageAge) continue;
-            if (mAge >= config.childEndAge || fAge >= config.childEndAge) continue;
+            // Stop only once beyond the end age, not at the exact boundary
+            if (mAge > config.childEndAge || fAge > config.childEndAge) continue;
             const last = (typeof c.lastBirthYear === 'number') ? c.lastBirthYear : c.startYear;
             if ((currentYear - last) >= config.yearsPerChild){
               const sex = (Math.random() * 100) < config.malePercent ? 'M' : 'F';
@@ -1680,7 +1686,7 @@
           const remaining = SIM_END_YEAR - currentYear;
           if (remaining <= 0){ stop(); return; }
           const stepYears = Math.min(YEARS_PER_TICK, remaining);
-          currentYear += stepYears;
+          currentYear += stepYears; // 1-year per tick
           pairUpSingles();
           haveBirths();
           updateStats();
